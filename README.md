@@ -1,63 +1,63 @@
 # org-excalidraw
 
-在 Org mode 中管理 [Excalidraw](https://excalidraw.com) 绘图的 Emacs 包。
+An Emacs package for managing [Excalidraw](https://excalidraw.com) drawings in Org mode.
 
-## 背景
+## Background
 
-本项目受 [wdavew/org-excalidraw](https://github.com/wdavew/org-excalidraw) 启发，但由于原库存在以下问题，进行了完全重写：
+This project is inspired by [wdavew/org-excalidraw](https://github.com/wdavew/org-excalidraw) but has been completely rewritten to address several critical issues in the original library.
 
-### 与原库的关系
+### Relationship with the Original Library
 
-[wdavew/org-excalidraw](https://github.com/wdavew/org-excalidraw) 是最早将 Excalidraw 集成到 Org mode 的方案，它的核心思路是通过自定义 `excalidraw:` 链接类型实现绘图管理。本项目继承了这一思路，但在实现层面做了根本性的改变。
+[wdavew/org-excalidraw](https://github.com/wdavew/org-excalidraw) was the first package to integrate Excalidraw into Org mode. Its core idea -- using a custom `excalidraw:` link type to manage drawings -- is excellent. This project inherits that concept but fundamentally changes the implementation.
 
-### 原库存在的问题
+### Issues with the Original Library
 
-1. **内联图片显示失效** — 原库依赖 `org-link-set-parameters` 的 `:image-data-fun` 属性来实现内联图片渲染。但 Org mode 9.7 移除了 `:image-data-fun` 的支持，导致自定义链接类型完全无法内联显示图片，`org-display-inline-images` 执行后报错 "No images to display inline"。
+1. **Broken inline image display** -- The original library relied on the `:image-data-fun` property of `org-link-set-parameters` for inline image rendering. However, Org mode 9.7 removed support for `:image-data-fun`, causing custom link types to completely fail at displaying inline images. Running `org-display-inline-images` results in "No images to display inline".
 
-2. **文件监听不完整** — 原库的 `file-notify` 回调仅监听 `renamed` 事件，在 macOS 上保存文件产生的是 `changed` 事件，导致在 Excalidraw 中保存绘图后不会自动重新生成 SVG。
+2. **Incomplete file watching** -- The original `file-notify` callback only listened for `renamed` events. On macOS, saving a file produces a `changed` event, so auto-regeneration of SVG after saving in Excalidraw silently fails.
 
-3. **SVG 文件名不一致** — 使用 Excalidraw 应用自带的导出功能时，生成的 SVG 文件名与源文件名不一致，导致链接失效。
+3. **Inconsistent SVG filenames** -- When using Excalidraw's built-in export function, the generated SVG filename does not match the source filename, causing broken links.
 
-4. **缺少批量操作** — 没有提供批量重新导出所有绘图的功能，当需要迁移或修复时只能逐个处理。
+4. **No batch operations** -- There was no way to batch re-export all drawings, forcing users to handle them one by one during migration or recovery.
 
-### 本库的解决方案
+### How This Library Solves These Issues
 
-本库完全重写了实现，核心技术变化：
+This library is a complete rewrite with the following key technical changes:
 
-- **内联显示**：通过 `:after` advice 扩展 `org-display-inline-images`，在原函数处理完 `file:` 和 `attachment:` 链接后，额外扫描 `excalidraw:` 链接并创建图片 overlay。这样既兼容 Org 9.7+，又与原生的 `org-remove-inline-images` 完全兼容。
-- **链接类型**：仍然使用 `org-link-set-parameters` 注册 `excalidraw:` 链接，但只用于 `:follow`（打开源文件）和 `:export`（HTML/LaTeX 导出），不再依赖已废弃的 `:image-data-fun`。
-- **文件监听**：同时响应 `renamed` 和 `changed` 事件，确保在 macOS/Linux 上都能正确触发自动导出。
-- **宽度控制**：支持全局默认宽度和 `#+ATTR_ORG: :width` 逐图覆盖，解决了 SVG 内联显示尺寸过小的问题。
-- **跨平台**：自动检测操作系统，选择正确的打开命令（macOS `open` / Linux `xdg-open` / Windows `start`）。
+- **Inline display**: Extends `org-display-inline-images` via `:after` advice. After the original function processes `file:` and `attachment:` links, the advice additionally scans for `excalidraw:` links and creates image overlays. This is compatible with Org 9.7+ and works seamlessly with `org-remove-inline-images`.
+- **Link type**: Still uses `org-link-set-parameters` to register the `excalidraw:` link type, but only for `:follow` (open source file) and `:export` (HTML/LaTeX export). No longer depends on the deprecated `:image-data-fun`.
+- **File watching**: Responds to both `renamed` and `changed` events, ensuring auto-export works correctly on macOS and Linux.
+- **Width control**: Supports a global default width and per-image override via `#+ATTR_ORG: :width`, solving the issue of SVG images displaying too small.
+- **Cross-platform**: Automatically detects the operating system and selects the correct open command (macOS `open` / Linux `xdg-open` / Windows `start`).
 
-## 功能
+## Features
 
-- 自定义 `excalidraw:` 链接类型：`[[excalidraw:uuid.excalidraw]]`
-- Org buffer 中内联显示 SVG 图片（兼容 Org 9.7+）
-- `C-c C-o` 打开链接时启动 Excalidraw 编辑源文件
-- 保存 `.excalidraw` 文件后自动重新生成 SVG
-- HTML / LaTeX 导出支持
-- 可配置的图片显示宽度
-- 批量导出所有绘图
+- Custom `excalidraw:` link type: `[[excalidraw:uuid.excalidraw]]`
+- Inline SVG image display in Org buffers (compatible with Org 9.7+)
+- `C-c C-o` opens the Excalidraw source file for editing
+- Auto-regenerates SVG when `.excalidraw` files are saved
+- HTML / LaTeX export support
+- Configurable image display width
+- Batch export all drawings
 
-## 依赖
+## Prerequisites
 
 - Emacs 27.1+
 - Org mode 9.3+
-- [excalidraw_export](https://github.com/nichochar/excalidraw-export) CLI 工具
-- [Excalidraw](https://excalidraw.com) 桌面应用或 PWA
+- [excalidraw_export](https://github.com/nichochar/excalidraw-export) CLI tool
+- [Excalidraw](https://excalidraw.com) desktop app or PWA
 
-### 安装 excalidraw_export
+### Installing excalidraw_export
 
 ```bash
 npm install -g excalidraw_export
 ```
 
-### 安装 Excalidraw 字体
+### Installing Excalidraw Fonts
 
-为确保 SVG 正确显示，需要安装 Excalidraw 使用的字体。可从 [excalidraw_export 仓库](https://github.com/nichochar/excalidraw-export) 获取。
+To ensure SVGs render correctly, install the fonts used by Excalidraw. These can be obtained from the [excalidraw_export repository](https://github.com/nichochar/excalidraw-export).
 
-## 安装
+## Installation
 
 ### Doom Emacs
 
@@ -65,7 +65,7 @@ npm install -g excalidraw_export
 
 ```elisp
 (package! org-excalidraw
-  :recipe (:host github :repo "你的用户名/org-excalidraw"))
+  :recipe (:host github :repo "YOUR_USERNAME/org-excalidraw"))
 ```
 
 `config.el`:
@@ -88,7 +88,7 @@ npm install -g excalidraw_export
 
 ```elisp
 (use-package org-excalidraw
-  :straight (:type git :host github :repo "你的用户名/org-excalidraw")
+  :straight (:type git :host github :repo "YOUR_USERNAME/org-excalidraw")
   :after org
   :config
   (setq org-excalidraw-directory "~/draws"
@@ -96,9 +96,9 @@ npm install -g excalidraw_export
   (org-excalidraw-setup))
 ```
 
-### 手动安装
+### Manual Installation
 
-将 `org-excalidraw.el` 放入 `load-path`，然后：
+Add `org-excalidraw.el` to your `load-path`, then:
 
 ```elisp
 (require 'org-excalidraw)
@@ -107,77 +107,63 @@ npm install -g excalidraw_export
   (org-excalidraw-setup))
 ```
 
-### Doomemacs
+## Usage
 
-``` elisp
-(use-package! org-excalidraw
-  :after org
-  :config
-  (setq org-excalidraw-directory "~/SynologyDrive/draws"
-        org-excalidraw-image-width 800)
-  (org-excalidraw-setup)
-  (map! "C-c n g c" #'org-excalidraw-create-drawing
-        "C-c n g e" #'org-excalidraw-export-all))
+### Creating a Drawing
 
-```
+Run `M-x org-excalidraw-create-drawing` (or `C-c e c`) in an Org buffer:
 
-## 使用
+1. Creates a new `.excalidraw` file in `org-excalidraw-directory`
+2. Immediately exports it to SVG
+3. Inserts an `[[excalidraw:uuid.excalidraw]]` link at point
+4. Opens Excalidraw with the system application for editing
 
-### 创建绘图
+### Viewing Drawings
 
-在 Org buffer 中执行 `M-x org-excalidraw-create-drawing`（或 `C-c e c`）：
+Press `C-c C-x C-v` (`org-toggle-inline-images`) to display SVG images inline in the buffer.
 
-1. 在 `org-excalidraw-directory` 下创建新的 `.excalidraw` 文件
-2. 立即导出为 SVG
-3. 在光标处插入 `[[excalidraw:uuid.excalidraw]]` 链接
-4. 用系统应用打开 Excalidraw 进行编辑
+### Editing Drawings
 
-### 查看绘图
+Press `C-c C-o` on a link to open the corresponding `.excalidraw` source file. After saving in Excalidraw, the SVG is automatically regenerated.
 
-按 `C-c C-x C-v`（`org-toggle-inline-images`）即可在 buffer 中内联显示 SVG。
+### Batch Export
 
-### 编辑绘图
+Run `M-x org-excalidraw-export-all` (or `C-c e a`) to re-export all `.excalidraw` files in the directory.
 
-在链接上按 `C-c C-o` 打开对应的 `.excalidraw` 源文件。在 Excalidraw 中保存后，SVG 会自动重新生成。
+### Controlling Image Size
 
-### 批量导出
-
-执行 `M-x org-excalidraw-export-all`（或 `C-c e a`）重新导出目录下所有 `.excalidraw` 文件。
-
-### 控制图片尺寸
-
-全局默认宽度：
+Global default width:
 
 ```elisp
 (setq org-excalidraw-image-width 1000)
 ```
 
-逐图覆盖：
+Per-image override:
 
 ```org
 #+ATTR_ORG: :width 600
 [[excalidraw:uuid.excalidraw]]
 ```
 
-## 自定义变量
+## Customization
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `org-excalidraw-directory` | `"~/draws"` | `.excalidraw` 文件存储目录 |
-| `org-excalidraw-image-width` | `800` | 内联显示和 HTML 导出的默认宽度（像素），`nil` 表示原始尺寸 |
-| `org-excalidraw-export-command` | `"excalidraw_export --rename_fonts=true"` | SVG 导出命令 |
-| `org-excalidraw-open-command` | 自动检测系统 | 打开 `.excalidraw` 文件的系统命令 |
-| `org-excalidraw-file-watch-p` | `t` | 是否监听文件变化并自动导出 |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `org-excalidraw-directory` | `"~/draws"` | Directory to store `.excalidraw` files |
+| `org-excalidraw-image-width` | `800` | Default width (px) for inline display and HTML export. `nil` for actual size |
+| `org-excalidraw-export-command` | `"excalidraw_export --rename_fonts=true"` | Shell command for SVG export |
+| `org-excalidraw-open-command` | Auto-detected | System command to open `.excalidraw` files |
+| `org-excalidraw-file-watch-p` | `t` | Whether to watch for file changes and auto-export |
 
-## 命令
+## Commands
 
-| 命令 | 说明 |
-|------|------|
-| `org-excalidraw-create-drawing` | 创建新绘图并插入链接 |
-| `org-excalidraw-export-all` | 批量导出所有绘图为 SVG |
-| `org-excalidraw-setup` | 初始化（注册链接类型 + advice + 文件监听）|
-| `org-excalidraw-teardown` | 卸载（移除 advice + 停止文件监听）|
+| Command | Description |
+|---------|-------------|
+| `org-excalidraw-create-drawing` | Create a new drawing and insert a link |
+| `org-excalidraw-export-all` | Batch export all drawings to SVG |
+| `org-excalidraw-setup` | Initialize (register link type + advice + file watching) |
+| `org-excalidraw-teardown` | Deactivate (remove advice + stop file watching) |
 
-## 许可证
+## License
 
 GPL-3.0
