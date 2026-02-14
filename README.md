@@ -107,6 +107,20 @@ npm install -g excalidraw_export
   (org-excalidraw-setup))
 ```
 
+### Doomemacs
+
+``` elisp
+(use-package! org-excalidraw
+  :after org
+  :config
+  (setq org-excalidraw-directory "~/SynologyDrive/draws"
+        org-excalidraw-image-width 800)
+  (org-excalidraw-setup)
+  (map! "C-c n g c" #'org-excalidraw-create-drawing
+        "C-c n g e" #'org-excalidraw-export-all))
+
+```
+
 ## 使用
 
 ### 创建绘图
